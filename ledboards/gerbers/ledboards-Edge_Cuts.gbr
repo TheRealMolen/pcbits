@@ -1,0 +1,23 @@
+%TF.GenerationSoftware,KiCad,Pcbnew,9.0.2+dfsg-1*%
+%TF.CreationDate,2026-04-19T10:55:39+01:00*%
+%TF.ProjectId,ledboards,6c656462-6f61-4726-9473-2e6b69636164,rev?*%
+%TF.SameCoordinates,Original*%
+%TF.FileFunction,Profile,NP*%
+%FSLAX46Y46*%
+G04 Gerber Fmt 4.6, Leading zero omitted, Abs format (unit mm)*
+G04 Created by KiCad (PCBNEW 9.0.2+dfsg-1) date 2026-04-19 10:55:39*
+%MOMM*%
+%LPD*%
+G01*
+G04 APERTURE LIST*
+%TA.AperFunction,Profile*%
+%ADD10C,0.050000*%
+%TD*%
+G04 APERTURE END LIST*
+D10*
+X98552000Y-54102000D02*
+X109728000Y-54102000D01*
+X109728000Y-65278000D01*
+X98552000Y-65278000D01*
+X98552000Y-54102000D01*
+M02*
