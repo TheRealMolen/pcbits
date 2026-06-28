@@ -25,19 +25,19 @@
 //  MUX_In_C -> PD5 | T1 (timer1 external clock) or OC0B (timer0 pwm out++)
 //  MUX_In_D -> PD6 | ICP (timer1 input capture pin)
 
-constexpr byte Pin_CPU_Out_A  = PA0;
-constexpr byte Pin_CPU_Out_B  = PA1;
-constexpr byte Pin_MUX_Sel0   = PB0;
-constexpr byte Pin_MUX_Sel1   = PB1;
-constexpr byte Pin_CPU_PWM_A  = PB2;
-constexpr byte Pin_CPU_PWM_B  = PB3;
-constexpr byte Pin_MUX_Out    = PD0;
-constexpr byte Pin_Partial_AB = PD1;
-constexpr byte Pin_Partial_CD = PD2;
-constexpr byte Pin_MUX_In_A   = PD3;
-constexpr byte Pin_MUX_In_B   = PD4;
-constexpr byte Pin_MUX_In_C   = PD5;
-constexpr byte Pin_MUX_In_D   = PD6;
+constexpr byte Pin_CPU_Out_A  = PIN_PA0;
+constexpr byte Pin_CPU_Out_B  = PIN_PA1;
+constexpr byte Pin_MUX_Sel0   = PIN_PB0;
+constexpr byte Pin_MUX_Sel1   = PIN_PB1;
+constexpr byte Pin_CPU_PWM_A  = PIN_PB2;
+constexpr byte Pin_CPU_PWM_B  = PIN_PB3;
+constexpr byte Pin_MUX_Out    = PIN_PD0;
+constexpr byte Pin_Partial_AB = PIN_PD1;
+constexpr byte Pin_Partial_CD = PIN_PD2;
+constexpr byte Pin_MUX_In_A   = PIN_PD3;
+constexpr byte Pin_MUX_In_B   = PIN_PD4;
+constexpr byte Pin_MUX_In_C   = PIN_PD5;
+constexpr byte Pin_MUX_In_D   = PIN_PD6;
 
 // to simplify code...
 constexpr byte Pin_SqrA_In = Pin_MUX_In_A;
@@ -62,20 +62,20 @@ constexpr byte Pin_SqrD_In = Pin_MUX_In_D;
 //  SqrC_Out -> PD5 | T1 (timer1 external clock) or OC0B (timer0 pwm out++)
 //  SqrD_Out -> PD6 | ICP (timer1 input capture pin)
 
-constexpr byte Pin_CPU_Out_A  = PA0;
-constexpr byte Pin_CPU_Out_B  = PA1;
-constexpr byte Pin_MUX_Sel0   = PB0;
-constexpr byte Pin_MUX_Sel1   = PB1;
-constexpr byte Pin_CPU_PWM_A  = PB2;
-constexpr byte Pin_CPU_PWM_B  = PB3;
-constexpr byte Pin_MUX_Out    = PB4;  // NOTE: swapped from revA vvv
-constexpr byte Pin_CPU_Out_C  = PD0;  // NOTE: swapped from revA ^^^
-constexpr byte Pin_Partial_AB = PD1;
-constexpr byte Pin_Partial_CD = PD2;
-constexpr byte Pin_SqrA_In    = PD3;
-constexpr byte Pin_SqrB_In    = PD4;
-constexpr byte Pin_SqrC_In    = PD5;
-constexpr byte Pin_SqrD_In    = PD6;
+constexpr byte Pin_CPU_Out_A  = PIN_PA0;
+constexpr byte Pin_CPU_Out_B  = PIN_PA1;
+constexpr byte Pin_MUX_Sel0   = PIN_PB0;
+constexpr byte Pin_MUX_Sel1   = PIN_PB1;
+constexpr byte Pin_CPU_PWM_A  = PIN_PB2;
+constexpr byte Pin_CPU_PWM_B  = PIN_PB3;
+constexpr byte Pin_MUX_Out    = PIN_PB4;  // NOTE: swapped from revA vvv
+constexpr byte Pin_CPU_Out_C  = PIN_PD0;  // NOTE: swapped from revA ^^^
+constexpr byte Pin_Partial_AB = PIN_PD1;
+constexpr byte Pin_Partial_CD = PIN_PD2;
+constexpr byte Pin_SqrA_In    = PIN_PD3;
+constexpr byte Pin_SqrB_In    = PIN_PD4;
+constexpr byte Pin_SqrC_In    = PIN_PD5;
+constexpr byte Pin_SqrD_In    = PIN_PD6;
 
 constexpr byte MskD_CPU_Out_C   = 1 << Pin_CPU_Out_C;
 
@@ -110,10 +110,10 @@ void setup()
   DDRD = 0;
   PORTD = 0;
   
-  //pinMode(Pin_CPU_Out_A, OUTPUT);
-  //pinMode(Pin_CPU_Out_B, OUTPUT);
+  pinMode(Pin_CPU_Out_A, OUTPUT);
+  pinMode(Pin_CPU_Out_B, OUTPUT);
 #if !SQR_REV_A
-  //pinMode(Pin_CPU_Out_C, OUTPUT);
+  pinMode(Pin_CPU_Out_C, OUTPUT);
 #endif
   pinMode(Pin_CPU_PWM_A, OUTPUT);
   pinMode(Pin_CPU_PWM_B, OUTPUT);
@@ -172,12 +172,12 @@ void loop()
 //  const bool cpu_b = 1 & ((pd >> Pin_SqrC_In) ^ (pd >> Pin_SqrD_In));
 //  PORTA = cpu_a | (cpu_b << 1);
 
-//  const bool sqrA = digitalRead(Pin_SqrA_In);
-//  const bool sqrB = digitalRead(Pin_SqrB_In);
-//  digitalWrite(Pin_CPU_Out_A, sqrA ^ sqrB);
-//  const bool sqrC = digitalRead(Pin_SqrC_In);
-//  const bool sqrD = digitalRead(Pin_SqrD_In);
-//  digitalWrite(Pin_CPU_Out_B, sqrC ^ sqrD);
+  const bool sqrA = digitalRead(Pin_SqrA_In);
+  const bool sqrB = digitalRead(Pin_SqrB_In);
+  digitalWrite(Pin_CPU_Out_A, sqrA ^ sqrB);
+  const bool sqrC = digitalRead(Pin_SqrC_In);
+  const bool sqrD = digitalRead(Pin_SqrD_In);
+  digitalWrite(Pin_CPU_Out_B, sqrC ^ sqrD);
 
 #if !SQR_REV_A
   const byte pb = PORTB;
