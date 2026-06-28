@@ -83,13 +83,6 @@ constexpr byte MskD_CPU_Out_C   = 1 << Pin_CPU_Out_C;
 #error unknown board revision
 #endif
 
-constexpr byte MskB_MUX_Sel0  = 1 << Pin_MUX_Sel0;
-constexpr byte MskB_MUX_Sel1  = 1 << Pin_MUX_Sel1;
-constexpr byte MskD_SqrA_In   = 1 << Pin_SqrA_In;
-constexpr byte MskD_SqrB_In   = 1 << Pin_SqrB_In;
-constexpr byte MskD_SqrC_In   = 1 << Pin_SqrC_In;
-constexpr byte MskD_SqrD_In   = 1 << Pin_SqrD_In;
-
 
 // CPU_PWM_A :: TIMER0 / PWM0 for percussive envelope, triggered by MUX_Partial_CD (INT0)
 // CPU_PWM_B :: TIMER1 / PWM1A for sawtooth tracking freq of SqrC, hardsynced to SqrD
@@ -118,6 +111,8 @@ void setup()
   pinMode(Pin_CPU_PWM_A, OUTPUT);
   pinMode(Pin_CPU_PWM_B, OUTPUT);
   pinMode(Pin_MUX_Out, INPUT);
+  pinMode(Pin_MUX_Sel0, INPUT);
+  pinMode(Pin_MUX_Sel1, INPUT);
 
   // THINKS: maybe use 8-bit timer0 for ramp PWM, and use 16-bit timer1 with input capture for z
 
@@ -131,6 +126,11 @@ void setup()
   // enable TIMER1_OVF interrupt (disable all timer1 interrupts and just enable ours)
   TIMSK &= ~(_BV(TOIE1) | _BV(OCIE1A) | _BV(OCIE1B) | _BV(ICIE1));
   TIMSK |= _BV(TOIE1);
+
+  // testing: enable PCINT0 interrupt
+  PCMSK = 1;  // PCINT0 is bit 0
+  GIMSK = _BV(PCIE);
+  digitalWrite(Pin_CPU_PWM_A, 1);
 }
 
 constexpr uint16_t freq = 100;
@@ -157,6 +157,14 @@ ISR(TIMER1_OVF_vect)
 {
     pwm_saw_val_fp8 += increment;
     OCR1A = byte(pwm_saw_val_fp8 >> 8);
+}
+
+bool bbb = false;
+ISR(PCINT_vect)
+{
+  if (digitalRead(Pin_MUX_Sel0))
+    bbb = !bbb;
+  digitalWrite(Pin_CPU_PWM_A, bbb);
 }
 
 
