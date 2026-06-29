@@ -77,11 +77,26 @@ constexpr byte Pin_SqrB_In    = PIN_PD4;
 constexpr byte Pin_SqrC_In    = PIN_PD5;
 constexpr byte Pin_SqrD_In    = PIN_PD6;
 
-constexpr byte MskD_CPU_Out_C   = 1 << Pin_CPU_Out_C;
+constexpr byte BitD_CPU_Out_C = 0;
+constexpr byte MskD_CPU_Out_C = 1 << BitD_CPU_Out_C;
 
 #else
 #error unknown board revision
 #endif
+
+constexpr byte BitD_SqrA_In = 3;
+constexpr byte BitD_SqrB_In = 4;
+constexpr byte BitD_SqrC_In = 5;
+constexpr byte BitD_SqrD_In = 6;
+constexpr byte MskD_SqrA_In = 1 << BitD_SqrA_In;
+constexpr byte MskD_SqrB_In = 1 << BitD_SqrB_In;
+constexpr byte MskD_SqrC_In = 1 << BitD_SqrC_In;
+constexpr byte MskD_SqrD_In = 1 << BitD_SqrD_In;
+
+static_assert(Pin_MUX_Sel1 == PIN_PB1);
+constexpr byte BitB_MUX_Sel1 = 1;
+constexpr byte MskB_MUX_Sel1 = 1 << BitB_MUX_Sel1;
+
 
 
 // CPU_PWM_A :: TIMER0 / PWM0 for percussive envelope, triggered by MUX_Partial_CD (INT0)
@@ -114,9 +129,17 @@ void setup()
   pinMode(Pin_MUX_Sel0, INPUT);
   pinMode(Pin_MUX_Sel1, INPUT);
 
-  // THINKS: maybe use 8-bit timer0 for ramp PWM, and use 16-bit timer1 with input capture for z
 
-  // TIMER1 for PWM_B
+  // CPU_PWM_A :: TIMER0 / PWM0 for percussive envelope, triggered by MUX_Partial_CD (INT0)
+  TCCR0A = _BV(COM0A1) | _BV(COM0A0) | _BV(WGM01) | _BV(WGM00);
+  TCCR0B = _BV(CS00);
+  TCNT0 = 0;
+  OCR0A = 0x00;
+  // enable TIMER0_OVF interrupt (disable all timer0 interrupts and just enable ours)
+  TIMSK &= ~(_BV(TOIE0) | _BV(OCIE0A) | _BV(OCIE0B));
+  TIMSK |= _BV(TOIE0);
+  
+  // CPU_PWM_B :: TIMER1 / PWM1A for sawtooth tracking freq of SqrC, hardsynced to SqrD
   // fast PWM 8bit, superfast clock
   TCCR1A = _BV(COM1A1) | _BV(COM1A0) | _BV(WGM10);
   TCCR1B = _BV(WGM12) | _BV(CS10);
@@ -127,10 +150,13 @@ void setup()
   TIMSK &= ~(_BV(TOIE1) | _BV(OCIE1A) | _BV(OCIE1B) | _BV(ICIE1));
   TIMSK |= _BV(TOIE1);
 
-  // testing: enable PCINT0 interrupt
-  PCMSK = 1;  // PCINT0 is bit 0
+//  // enable int0 interrupt to trigger env
+//  MCUCR &= 0x0f;
+//  MCUCR |= _BV(ISC01) | _BV(ISC00);
+//  GIMSK = _BV(INT0);
+  // enable pcint1 interrupt to trigger env
+  PCMSK = 1 << BitB_MUX_Sel1;
   GIMSK = _BV(PCIE);
-  digitalWrite(Pin_CPU_PWM_A, 1);
 }
 
 constexpr uint16_t freq = 100;
@@ -145,28 +171,83 @@ static_assert(increment32 > 0);
 
 uint16_t increment = uint16_t(increment32);
 
-volatile uint16_t pwm_saw_val_fp8 = 0;
+volatile uint16_t pwm_saw_val_fx8 = 0;
 
-//
-//ISR(TIMER0_OVF_vect)
-//{
-//    val_8 += increment;
-//    OCR0A = byte(val_8 >> 8);
-//}
+volatile byte pwm_env_skip_count = 0;
+volatile byte pwm_env_phase = 0;
+volatile byte pwm_env_thresh = 0;
+
+ISR(TIMER0_OVF_vect)
+{
+    if (pwm_env_skip_count > 0)
+    {
+        --pwm_env_skip_count;
+        return;
+    }
+    pwm_env_skip_count = 50;
+
+    switch (pwm_env_phase)
+    {
+      case 0:
+        pwm_env_thresh += 16;
+        if (pwm_env_thresh > 190)
+          pwm_env_phase = 1;
+        break;
+
+      case 1:
+        pwm_env_thresh += 3;
+        if (pwm_env_thresh > 240)
+          pwm_env_phase = 2;
+        break;
+
+      default:
+        if (pwm_env_thresh < 0xff)
+          pwm_env_thresh += 1;
+    }
+ 
+    OCR0A = pwm_env_thresh;
+}
+
+static inline void trigger_env()
+{
+    pwm_env_thresh = 0;
+    pwm_env_phase = 0;
+    TCNT0 = 0;
+}
+
 ISR(TIMER1_OVF_vect)
 {
-    pwm_saw_val_fp8 += increment;
-    OCR1A = byte(pwm_saw_val_fp8 >> 8);
+    pwm_saw_val_fx8 += increment;
+    OCR1A = byte(pwm_saw_val_fx8 >> 8);
 }
 
-bool bbb = false;
+
+// fired by PCINT1 (MUX_Sel1) changing
+static byte lastPortB = 0;
 ISR(PCINT_vect)
 {
-  if (digitalRead(Pin_MUX_Sel0))
-    bbb = !bbb;
-  digitalWrite(Pin_CPU_PWM_A, bbb);
+  if (digitalRead(Pin_MUX_Sel1))
+    trigger_env();
+//  const byte portB = PINB;
+//  const byte rising = portB & ~lastPortB;
+//  lastPortB = portB;
+//
+//  if (rising & MskB_MUX_Sel1)
+//    trigger_env();
 }
 
+// fired by Pin_Partial_CD changing
+// trigger percussive envelope
+ISR(INT0_vect)
+{
+    trigger_env();
+//  if (digitalRead(Pin_MUX_Sel0))
+//    
+//  digitalWrite(Pin_CPU_PWM_A, bbb);
+}
+
+
+bool oldSqrD = false;
 
 void loop()
 {
@@ -175,16 +256,16 @@ void loop()
   // CPU_Out_B :: SqrC xor SqrD
   // [revB+ only] CPU_Out_C :: MUX_Sel1 ? (SqrA xor SqrC) : (SqrB xor SqrC)
   
-//  const byte pd = PORTD;
+  const byte pd = PIND;
 //  const bool cpu_a = 1 & ((pd >> Pin_SqrA_In) ^ (pd >> Pin_SqrB_In));
 //  const bool cpu_b = 1 & ((pd >> Pin_SqrC_In) ^ (pd >> Pin_SqrD_In));
 //  PORTA = cpu_a | (cpu_b << 1);
 
-  const bool sqrA = digitalRead(Pin_SqrA_In);
-  const bool sqrB = digitalRead(Pin_SqrB_In);
+  const bool sqrA = (pd & MskD_SqrA_In) != 0; //digitalRead(Pin_SqrA_In);
+  const bool sqrB = (pd & MskD_SqrB_In) != 0; //digitalRead(Pin_SqrB_In);
   digitalWrite(Pin_CPU_Out_A, sqrA ^ sqrB);
-  const bool sqrC = digitalRead(Pin_SqrC_In);
-  const bool sqrD = digitalRead(Pin_SqrD_In);
+  const bool sqrC = (pd & MskD_SqrC_In) != 0; //digitalRead(Pin_SqrC_In);
+  const bool sqrD = (pd & MskD_SqrD_In) != 0; //digitalRead(Pin_SqrD_In);
   digitalWrite(Pin_CPU_Out_B, sqrC ^ sqrD);
 
 #if !SQR_REV_A
@@ -194,4 +275,11 @@ void loop()
   const bool cpu_c = (mux_sel1 ? ((pd >> Pin_SqrA_In) & (pd >> Pin_SqrC_In)) : ((pd >> Pin_SqrB_In) & (pd >> Pin_SqrD_In)));
   PORTD = (pd & ~MskD_CPU_Out_C) | (cpu_c << Pin_CPU_Out_C);
 #endif
+
+  // apply hardsync for PWM_B
+  if (sqrD && !oldSqrD)
+  {
+    pwm_saw_val_fx8 = 0;
+  }
+  oldSqrD = sqrD;
 }
